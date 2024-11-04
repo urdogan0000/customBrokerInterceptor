@@ -20,6 +20,8 @@ import java.util.Map;
 
 public class CustomBrokerInterceptor implements BrokerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(CustomBrokerInterceptor.class);
+    private static final String ONLINE_TOPIC = "mytopic1";
+    private static final String OFFLINE_TOPIC = "mytopic2";
 
     private static volatile PulsarService pulsarService;
     private static volatile Producer<OnlineStatusMessageDTO> onlineProducer;
@@ -41,10 +43,10 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
 
     private synchronized void initializeProducer() {
         if (onlineProducer == null) {
-            onlineProducer = createProducer("mytopic1");
+            onlineProducer = createProducer(ONLINE_TOPIC);
         }
         if (offlineProducer == null) {
-            offlineProducer = createProducer("mytopic2");
+            offlineProducer = createProducer(OFFLINE_TOPIC);
         }
     }
 
