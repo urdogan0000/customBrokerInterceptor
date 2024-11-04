@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.liderahenk</groupId>
+    <artifactId>custombroker</artifactId>
+    <version>1.0</version>
+
+    <properties>
+        <maven.compiler.source>21</maven.compiler.source>  <!-- Java 17 for better compatibility -->
+        <maven.compiler.target>21</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <dependencies>
+        <!-- Pulsar Broker dependency -->
+        <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>pulsar-broker</artifactId>
+            <version>4.0.0</version>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <finalName>${project.artifactId}</finalName>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.nifi</groupId>
+                <artifactId>nifi-nar-maven-plugin</artifactId>
+                <version>1.5.0</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <finalName>${project.artifactId}-${project.version}</finalName>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>default-nar</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>nar</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
