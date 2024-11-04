@@ -10,12 +10,11 @@ public class OnlineStatusMessageDTO implements Serializable {
     private String subscriptionName;
 
 
-    // No-args constructor required for deserialization
     public OnlineStatusMessageDTO() {
     }
 
     // All-args constructor
-    public OnlineStatusMessageDTO(String subscriptionName, String eventDate) {
+    public OnlineStatusMessageDTO(String subscriptionName) {
         this.subscriptionName = subscriptionName;
 
     }

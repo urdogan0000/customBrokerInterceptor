@@ -64,14 +64,14 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void consumerCreated(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
         BrokerInterceptor.super.consumerCreated(cnx, consumer, metadata);
-        log.info("Consumer connected with ID: {}", consumer.consumerId());
+        log.info("Consumer connected with subscriptionName: {}", consumer.getSubscription().getName());
 
         if (onlineProducer == null) {
             initializeProducer();
         }
 
         if (onlineProducer != null) {
-            OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName(), "Connected");
+            OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName());
             try {
                 onlineProducer.send(message);
                 log.info("Message sent to online topic {} from CustomBrokerInterceptor.", ONLINE_TOPIC);
@@ -86,14 +86,14 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
     @Override
     public void consumerClosed(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
         BrokerInterceptor.super.consumerClosed(cnx, consumer, metadata);
-        log.info("Consumer closed with ID: {}", consumer.consumerId());
+        log.info("Consumer closed with subscriptionName: {}", consumer.getSubscription().getName());
 
         if (offlineProducer == null) {
             initializeProducer();
         }
 
         if (offlineProducer != null) {
-            OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName(), "Disconnected");
+            OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName());
             try {
                 offlineProducer.send(message);
                 log.info("Message sent to offline topic {} from CustomBrokerInterceptor.", OFFLINE_TOPIC);
