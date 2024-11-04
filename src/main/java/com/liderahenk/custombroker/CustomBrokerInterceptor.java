@@ -20,12 +20,16 @@ import java.util.Map;
 
 public class CustomBrokerInterceptor implements BrokerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(CustomBrokerInterceptor.class);
-    private static final String ONLINE_TOPIC = "mytopic1";
-    private static final String OFFLINE_TOPIC = "mytopic2";
+    private static final String ONLINE_TOPIC = "online";
+    private static final String OFFLINE_TOPIC = "offline";
 
     private static volatile PulsarService pulsarService;
     private static volatile Producer<OnlineStatusMessageDTO> onlineProducer;
     private static volatile Producer<OnlineStatusMessageDTO> offlineProducer;
+
+    private static void setPulsarService(PulsarService pulsarService) {
+        CustomBrokerInterceptor.pulsarService = pulsarService;
+    }
 
     private synchronized Producer<OnlineStatusMessageDTO> createProducer(String topicName) {
         try {
@@ -57,8 +61,6 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
         log.info("Client IP and source information: {}", cnx.clientSourceAddressAndPort());
     }
 
-
-
     @Override
     public void consumerCreated(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
         BrokerInterceptor.super.consumerCreated(cnx, consumer, metadata);
@@ -72,7 +74,7 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
             OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName(), "Connected");
             try {
                 onlineProducer.send(message);
-                log.info("Message sent to topic 'mytopic1' from CustomBrokerInterceptor.");
+                log.info("Message sent to online topic {} from CustomBrokerInterceptor.", ONLINE_TOPIC);
             } catch (Exception e) {
                 log.error("Failed to send message from CustomBrokerInterceptor: {}", e.getMessage(), e);
             }
@@ -94,7 +96,7 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
             OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName(), "Disconnected");
             try {
                 offlineProducer.send(message);
-                log.info("Message sent to topic 'mytopic2' from CustomBrokerInterceptor.");
+                log.info("Message sent to offline topic {} from CustomBrokerInterceptor.", OFFLINE_TOPIC);
             } catch (Exception e) {
                 log.error("Failed to send message from CustomBrokerInterceptor: {}", e.getMessage(), e);
             }
@@ -129,10 +131,6 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
         log.info("Initializing CustomBrokerInterceptor...");
         CustomBrokerInterceptor.setPulsarService(pulsarService);
         initializeProducer();
-    }
-
-    private static void setPulsarService(PulsarService pulsarService) {
-        CustomBrokerInterceptor.pulsarService =pulsarService;
     }
 
     @Override

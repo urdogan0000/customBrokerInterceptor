@@ -8,7 +8,7 @@ public class OnlineStatusMessageDTO implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String subscriptionName;
-    private String eventDate;
+
 
     // No-args constructor required for deserialization
     public OnlineStatusMessageDTO() {
@@ -17,7 +17,7 @@ public class OnlineStatusMessageDTO implements Serializable {
     // All-args constructor
     public OnlineStatusMessageDTO(String subscriptionName, String eventDate) {
         this.subscriptionName = subscriptionName;
-        this.eventDate = eventDate;
+
     }
 
     // Getter and Setter for subscriptionName
@@ -29,20 +29,11 @@ public class OnlineStatusMessageDTO implements Serializable {
         this.subscriptionName = subscriptionName;
     }
 
-    // Getter and Setter for eventDate
-    public String getEventDate() {
-        return eventDate;
-    }
-
-    public void setEventDate(String eventDate) {
-        this.eventDate = eventDate;
-    }
 
     @Override
     public String toString() {
         return "OnlineStatusMessageDTO{" +
                 "subscriptionName='" + subscriptionName + '\'' +
-                ", eventDate='" + eventDate + '\'' +
                 '}';
     }
 }
