@@ -73,7 +73,12 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
         if (onlineProducer != null) {
             OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName());
             try {
-                onlineProducer.send(message);
+                onlineProducer.sendAsync(message)
+                        .thenAccept(msgId -> log.info("Reactive message sent to online topic {} with ID: {}", ONLINE_TOPIC, msgId))
+                        .exceptionally(e -> {
+                            log.error("Failed to send reactive message to online topic: {}", e.getMessage(), e);
+                            return null;
+                        });
                 log.info("Message sent to online topic {} from CustomBrokerInterceptor.", ONLINE_TOPIC);
             } catch (Exception e) {
                 log.error("Failed to send message from CustomBrokerInterceptor: {}", e.getMessage(), e);
@@ -95,7 +100,12 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
         if (offlineProducer != null) {
             OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName());
             try {
-                offlineProducer.send(message);
+                offlineProducer.sendAsync(message)
+                        .thenAccept(msgId -> log.info("Reactive message sent to offline topic {} with ID: {}", OFFLINE_TOPIC, msgId))
+                        .exceptionally(e -> {
+                            log.error("Failed to send reactive message to offline topic: {}", e.getMessage(), e);
+                            return null;
+                        });
                 log.info("Message sent to offline topic {} from CustomBrokerInterceptor.", OFFLINE_TOPIC);
             } catch (Exception e) {
                 log.error("Failed to send message from CustomBrokerInterceptor: {}", e.getMessage(), e);
