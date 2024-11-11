@@ -17,15 +17,22 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import java.io.IOException;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class CustomBrokerInterceptor implements BrokerInterceptor {
     private static final Logger log = LoggerFactory.getLogger(CustomBrokerInterceptor.class);
     private static final String ONLINE_TOPIC = "online";
     private static final String OFFLINE_TOPIC = "offline";
+    private static final String AHENK_PREFIX = "ahenk-";
+
 
     private static volatile PulsarService pulsarService;
     private static volatile Producer<OnlineStatusMessageDTO> onlineProducer;
     private static volatile Producer<OnlineStatusMessageDTO> offlineProducer;
+
+    private final ScheduledExecutorService healthCheckScheduler = Executors.newSingleThreadScheduledExecutor();
 
     private static void setPulsarService(PulsarService pulsarService) {
         CustomBrokerInterceptor.pulsarService = pulsarService;
@@ -40,12 +47,12 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
             log.info("Producer created successfully for topic {} with OnlineStatusMessageDTO schema.", topicName);
             return producer;
         } catch (Exception e) {
-            log.error("Producer initialization failed: {}", e.getMessage(), e);
+            log.error("Producer initialization failed for topic {}: {}", topicName, e.getMessage(), e);
             return null;
         }
     }
 
-    private synchronized void initializeProducer() {
+    private synchronized void initializeProducers() {
         if (onlineProducer == null) {
             onlineProducer = createProducer(ONLINE_TOPIC);
         }
@@ -54,65 +61,73 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
         }
     }
 
+    private synchronized boolean isProducerHealthy(Producer<?> producer) {
+        try {
+            return producer != null && producer.isConnected();
+        } catch (Exception e) {
+            log.warn("Producer health check failed: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    private void ensureProducersHealthy() {
+        if (!isProducerHealthy(onlineProducer)) {
+            log.info("Reinitializing online producer...");
+            onlineProducer = createProducer(ONLINE_TOPIC);
+        }
+        if (!isProducerHealthy(offlineProducer)) {
+            log.info("Reinitializing offline producer...");
+            offlineProducer = createProducer(OFFLINE_TOPIC);
+        }
+    }
+
+    private void sendMessage(Producer<OnlineStatusMessageDTO> producer, String topic, OnlineStatusMessageDTO message) {
+        try {
+            if (producer != null && producer.isConnected()) {
+                if (message.getSubscriptionName().contains(AHENK_PREFIX)) {
+                    producer.send(message);
+                    log.info("Message sent to topic {}: {}", topic, message);
+                } else {
+                    log.info("System topic received {}", message);
+                }
+
+            } else {
+                log.warn("Producer for topic {} is not connected. Message not sent: {}", topic, message);
+                initializeProducers(); // Reinitialize producer if needed
+            }
+        } catch (Exception e) {
+            log.error("Failed to send message to topic {}: {}", topic, e.getMessage(), e);
+            initializeProducers(); // Attempt to reinitialize producer on failure
+        }
+    }
+
     @Override
     public void onConnectionCreated(ServerCnx cnx) {
-
         log.info("New client connection established from IP: {}", cnx.clientAddress());
-        log.info("Client IP and source information: {}", cnx.clientSourceAddressAndPort());
     }
 
     @Override
     public void consumerCreated(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
-        BrokerInterceptor.super.consumerCreated(cnx, consumer, metadata);
         log.info("Consumer connected with subscriptionName: {}", consumer.getSubscription().getName());
 
-        if (onlineProducer == null) {
-            initializeProducer();
+        if (onlineProducer == null || !onlineProducer.isConnected()) {
+            initializeProducers();
         }
 
-        if (onlineProducer != null) {
-            OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName());
-            try {
-                onlineProducer.sendAsync(message)
-                        .thenAccept(msgId -> log.info("Reactive message sent to online topic {} with ID: {}", ONLINE_TOPIC, msgId))
-                        .exceptionally(e -> {
-                            log.error("Failed to send reactive message to online topic: {}", e.getMessage(), e);
-                            return null;
-                        });
-                log.info("Message sent to online topic {} from CustomBrokerInterceptor.", ONLINE_TOPIC);
-            } catch (Exception e) {
-                log.error("Failed to send message from CustomBrokerInterceptor: {}", e.getMessage(), e);
-            }
-        } else {
-            log.warn("Online producer is not initialized. Message not sent for consumer with ID: {}", consumer.getSubscription().getName());
-        }
+        OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName());
+        sendMessage(onlineProducer, ONLINE_TOPIC, message);
     }
 
     @Override
     public void consumerClosed(ServerCnx cnx, Consumer consumer, Map<String, String> metadata) {
-        BrokerInterceptor.super.consumerClosed(cnx, consumer, metadata);
         log.info("Consumer closed with subscriptionName: {}", consumer.getSubscription().getName());
 
-        if (offlineProducer == null) {
-            initializeProducer();
+        if (offlineProducer == null || !offlineProducer.isConnected()) {
+            initializeProducers();
         }
 
-        if (offlineProducer != null) {
-            OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName());
-            try {
-                offlineProducer.sendAsync(message)
-                        .thenAccept(msgId -> log.info("Reactive message sent to offline topic {} with ID: {}", OFFLINE_TOPIC, msgId))
-                        .exceptionally(e -> {
-                            log.error("Failed to send reactive message to offline topic: {}", e.getMessage(), e);
-                            return null;
-                        });
-                log.info("Message sent to offline topic {} from CustomBrokerInterceptor.", OFFLINE_TOPIC);
-            } catch (Exception e) {
-                log.error("Failed to send message from CustomBrokerInterceptor: {}", e.getMessage(), e);
-            }
-        } else {
-            log.warn("Offline producer is not initialized. Message not sent for consumer with ID: {}", consumer.getSubscription().getName());
-        }
+        OnlineStatusMessageDTO message = new OnlineStatusMessageDTO(consumer.getSubscription().getName());
+        sendMessage(offlineProducer, OFFLINE_TOPIC, message);
     }
 
     @Override
@@ -122,8 +137,7 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
 
     @Override
     public void onConnectionClosed(ServerCnx cnx) {
-        log.info("Connection Closed from IP: {}", cnx.clientAddress());
-        log.info("Logout Connection Client IP and source information: {}", cnx.clientSourceAddressAndPort());
+        log.info("Connection closed from IP: {}", cnx.clientAddress());
     }
 
     @Override
@@ -140,7 +154,10 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
     public synchronized void initialize(PulsarService pulsarService) {
         log.info("Initializing CustomBrokerInterceptor...");
         CustomBrokerInterceptor.setPulsarService(pulsarService);
-        initializeProducer();
+        initializeProducers();
+
+        // Schedule health checks for producers
+        healthCheckScheduler.scheduleAtFixedRate(this::ensureProducersHealthy, 1, 30, TimeUnit.SECONDS);
     }
 
     @Override
@@ -154,6 +171,8 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
                 offlineProducer.close();
                 log.info("Offline producer closed.");
             }
+            healthCheckScheduler.shutdown();
+            log.info("Health check scheduler stopped.");
         } catch (Exception e) {
             log.error("Failed to close producer: {}", e.getMessage(), e);
         }
