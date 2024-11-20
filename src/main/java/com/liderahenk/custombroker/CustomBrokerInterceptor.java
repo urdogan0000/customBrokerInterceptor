@@ -85,7 +85,7 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
         try {
             if (producer != null && producer.isConnected()) {
                 if (message.getSubscriptionName().contains(AHENK_PREFIX)) {
-                    producer.send(message);
+                    producer.sendAsync(message);
                     log.info("Message sent to topic {}: {}", topic, message);
                 } else {
                     log.info("System topic received {}", message);
