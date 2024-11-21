@@ -44,7 +44,7 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
             PulsarClient client = pulsarService.getClient();
             Producer<OnlineStatusMessageDTO> producer = client.newProducer(Schema.JSON(OnlineStatusMessageDTO.class))
                     .topic(topicName)
-                    .compressionType(CompressionType.ZLIB)
+                    .compressionType(CompressionType.ZSTD)
                     .create();
             log.info("Producer created successfully for topic {} with OnlineStatusMessageDTO schema.", topicName);
             return producer;
