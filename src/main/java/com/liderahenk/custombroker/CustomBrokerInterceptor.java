@@ -4,6 +4,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.intercept.BrokerInterceptor;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.ServerCnx;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Schema;
@@ -43,6 +44,7 @@ public class CustomBrokerInterceptor implements BrokerInterceptor {
             PulsarClient client = pulsarService.getClient();
             Producer<OnlineStatusMessageDTO> producer = client.newProducer(Schema.JSON(OnlineStatusMessageDTO.class))
                     .topic(topicName)
+                    .compressionType(CompressionType.ZLIB)
                     .create();
             log.info("Producer created successfully for topic {} with OnlineStatusMessageDTO schema.", topicName);
             return producer;
